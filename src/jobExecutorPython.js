@@ -1,8 +1,6 @@
-const process = require('process');
+const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
-const {Constants} = require('eae-utils');
 
 const JobExecutorAbstract = require('./jobExecutorAbstract.js');
 const { SwiftHelper, ErrorHelper } = require('eae-utils');
@@ -38,7 +36,7 @@ JobExecutorPython.prototype.constructor = JobExecutorPython;
 
 /**
  * @fn _preExecution
- * @desc Prepare jobs inputs and params
+ * @desc Prepare jobs inputs and params. In particular, it retrieves the source code and the data files needed
  * @return {Promise} Resolve to true on successful preparation
  * @private
  * @pure
@@ -46,49 +44,21 @@ JobExecutorPython.prototype.constructor = JobExecutorPython;
 JobExecutorPython.prototype._preExecution = function() {
     let _this = this;
 
-    return new Promise(function (resolve, reject) {
-        // Compute input container name
-        let container_name = _this._jobID.toString() + '_input';
-        // Create input directory
+    return new Promise(function (resolve) {
+        // Post request to DB to trigger data extraction
+        _this.db.getData(_this._job_ID);
+
+        // Get algorithm source code and write it to file
         fs.mkdirSync(path.join(_this._tmpDirectory, 'input'));
-        let file_transfer_promises = [];
-
-        // Download each input file in the model from the swift store
-        _this._model.input.forEach(function(file) {
-            // Store the file in the input subdirectory
-            let tmpDestination = path.join(_this._tmpDirectory, 'input', file);
-
-            // Get download stream
-            let p = _this._swift.getFileReadStream(container_name, file).then(function(rs) {
-                let ws = fs.createWriteStream(tmpDestination); // Open file descriptor
-                rs.pipe(ws); //Pipe received data to be written in the file
-
-                // Listen to then end of the file transfer
-                resolve(new Promise(function(file_resolve, file_reject) {
-                    rs.on('end', function() {
-                        file_resolve(true);
-                    });
-                    rs.on('error', function(error) {
-                        file_reject(ErrorHelper('Downloading ' + file + ' failed', error));
-                    });
-                }));
-            }, function(error) {
-                reject(ErrorHelper('Downloading ' + file + ' has error', error));
+        _this.algoBank.getAlgoSourceCode(_this._job_ID).then(function(algoSourceCode) {
+            let fileName = 'algo.py';
+            let tmpDestination = path.join(_this._tmpDirectory, 'input', fileName);
+            let stream = fs.createWriteStream(tmpDestination);
+            stream.once('open', function() {
+                stream.write(algoSourceCode);
+                stream.end();
             });
-
-            // Push the file transfer promise into array
-            file_transfer_promises.push(p);
-        });
-
-        //Wait for all files to be transferred
-        Promise.all(file_transfer_promises).then(function(__unused__ok_array) {
-            //Create output directory if doesnt exists
-            if (fs.existsSync(path.join(_this._tmpDirectory, 'input', 'output')) === false) {
-                fs.mkdirSync(path.join(_this._tmpDirectory, 'input', 'output'));
-            }
-            resolve(true); // All good
-        }, function(error) {
-            reject(ErrorHelper('Input download failed', error));
+            resolve(true);
         });
     });
 };
@@ -154,41 +124,35 @@ JobExecutorPython.prototype._postExecution = function() {
 
 /**
  * @fn startExecution
- * @param callback {Function} Function called after execution. callback(error, status)
  * @desc Starts the execution of designated job.
  */
-JobExecutorPython.prototype.startExecution = function(callback) {
+JobExecutorPython.prototype.startExecution = function() {
     let _this = this;
 
-    _this._callback = callback;
-    // Create tmp directory
-    fs.mkdtemp(os.tmpdir() + path.sep, function(error, directoryPath) {
+    fs.mkdir(path.join(_this._tmpDirectory, 'output'), function (error) {
         if (error) {
-            callback(error);
             return;
         }
-        _this._tmpDirectory = directoryPath; //Save tmp dir
+        while(!stream._readableState.ended) {
+            continue;
+        }
+        // Now the stream has ended and all data files are stored here
+        let algoModuleName = 'algo.py';
+        let algoClassName = 'some class';
+        let dataDir = path.join(_this._tmpDirectory, 'input');
+        let numOfThreads = 4;
+        let outputDir = path.join(_this._tmpDirectory, 'output');
+        let parameters = _this.db.getJob(_this._jobID).parameters;
 
-        _this.fetchModel().then(function () {
-            //Clean model for execution
-            _this._model.stdout = '';
-            _this._model.stderr = '';
-            _this._model.status.unshift(Constants.EAE_JOB_STATUS_RUNNING);
-            _this._model.startDate = new Date();
-            _this.pushModel().then(function() {
-                let cmd = 'python ' + _this._model.main;
-                let args = _this._model.params;
-                let opts = {
-                    cwd: _this._tmpDirectory + '/input',
-                    end: process.env,
-                    shell: true
-                };
-                _this._exec(cmd, args, opts);
-            }, function(error) {
-                throw error;
-            });
-        }, function (error) {
-            callback(error);
+        exec(`python script.py ${algoModuleName} ${algoClassName} ${dataDir} ${numOfThreads} ${outputDir} ${parameters}`, (err, stdout, stderr) => {
+            if (err) {
+                // node couldn't execute the command
+                return;
+            }
+
+            // the *entire* stdout and stderr (buffered)
+            console.log(`stdout: ${stdout}`);
+            console.log(`stderr: ${stderr}`);
         });
     });
 };

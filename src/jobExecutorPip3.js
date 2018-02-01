@@ -3,24 +3,24 @@ const JobExecutorAbstract = require('./jobExecutorAbstract.js');
 const {Constants} = require('eae-utils');
 
 /**
- * @class JobExecutorPip
+ * @class JobExecutorPip3
  * @desc Specialization of JobExecutorAbstract for python scripts
  * @param jobID {String} The job unique identifier in DB
  * @param jobCollection MongoDB collection to sync the job model against
  * @param jobModel {Object} Plain js Job model from the mongoDB, optional if fetchModel is called
  * @constructor
  */
-function JobExecutorPip(jobID, jobCollection, jobModel) {
+function JobExecutorPip3(jobID, jobCollection, jobModel) {
     JobExecutorAbstract.call(this, jobID, jobCollection, jobModel);
 
     // Bind member functions
-    this._preExecution = JobExecutorPip.prototype._preExecution.bind(this);
-    this._postExecution = JobExecutorPip.prototype._postExecution.bind(this);
-    this.startExecution = JobExecutorPip.prototype.startExecution.bind(this);
-    this.stopExecution = JobExecutorPip.prototype.stopExecution.bind(this);
+    this._preExecution = JobExecutorPip3.prototype._preExecution.bind(this);
+    this._postExecution = JobExecutorPip3.prototype._postExecution.bind(this);
+    this.startExecution = JobExecutorPip3.prototype.startExecution.bind(this);
+    this.stopExecution = JobExecutorPip3.prototype.stopExecution.bind(this);
 }
-JobExecutorPip.prototype = Object.create(JobExecutorAbstract.prototype); //Inherit Js style
-JobExecutorPip.prototype.constructor = JobExecutorPip;
+JobExecutorPip3.prototype = Object.create(JobExecutorAbstract.prototype); //Inherit Js style
+JobExecutorPip3.prototype.constructor = JobExecutorPip3;
 
 /**
  * @fn _preExecution
@@ -28,7 +28,7 @@ JobExecutorPip.prototype.constructor = JobExecutorPip;
  * @return {Promise} Resolve to true
  * @private
  */
-JobExecutorPip.prototype._preExecution = function() {
+JobExecutorPip3.prototype._preExecution = function() {
     // No file to transfer here, just resolve to true
     return new Promise(function (resolve, __unused__reject) {
         resolve(true);
@@ -41,7 +41,7 @@ JobExecutorPip.prototype._preExecution = function() {
  * @return {Promise} Resolve to true
  * @private
  */
-JobExecutorPip.prototype._postExecution = function() {
+JobExecutorPip3.prototype._postExecution = function() {
     // No file to transfer here, just resolve to true
     return new Promise(function (resolve, __unused__reject) {
         resolve(true);
@@ -53,7 +53,7 @@ JobExecutorPip.prototype._postExecution = function() {
  * @param callback {Function} Function called after execution. callback(error, status)
  * @desc Starts the execution of designated job.
  */
-JobExecutorPip.prototype.startExecution = function(callback) {
+JobExecutorPip3.prototype.startExecution = function(callback) {
     let _this = this;
 
     _this._callback = callback;
@@ -64,7 +64,7 @@ JobExecutorPip.prototype.startExecution = function(callback) {
         _this._model.status.unshift(Constants.EAE_JOB_STATUS_RUNNING);
         _this._model.startDate = new Date();
         _this.pushModel().then(function() {
-            let cmd = 'pip';
+            let cmd = 'pip3';
             let args = _this._model.params;
             let opts = {
                 cwd:  process.cwd(),
@@ -85,9 +85,9 @@ JobExecutorPip.prototype.startExecution = function(callback) {
  * @desc Interrupts the currently executed job.
  * @param callback {Function} Function called after execution. callback(error, status)
  */
-JobExecutorPip.prototype.stopExecution = function(callback) {
+JobExecutorPip3.prototype.stopExecution = function(callback) {
     this._callback = callback;
     this._kill();
 };
 
-module.exports = JobExecutorPip;
+module.exports = JobExecutorPip3;

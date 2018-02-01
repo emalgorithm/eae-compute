@@ -21,10 +21,10 @@ beforeAll(function() {
 
 test('Create pip install pymongo job & start running', function(done) {
     expect.assertions(6);
-    ts.createJob(eaeutils.Constants.EAE_JOB_TYPE_PIP,
+    ts.createJob(eaeutils.Constants.EAE_JOB_TYPE_PIP3,
         '', ['install', 'pymongo'], [ ]).then(function(job_model) {
         expect(job_model).toBeDefined();
-        expect(job_model.type).toEqual(eaeutils.Constants.EAE_JOB_TYPE_PIP);
+        expect(job_model.type).toEqual(eaeutils.Constants.EAE_JOB_TYPE_PIP3);
         job_model.input = [];
         job_model.output = [];
         g_job = job_model;
@@ -91,10 +91,10 @@ test('Delete pip install job', function(done) {
 
 test('Create pymongo job & start running', function(done) {
     expect.assertions(6);
-    ts.createJob(eaeutils.Constants.EAE_JOB_TYPE_PYTHON2,
+    ts.createJob(eaeutils.Constants.EAE_JOB_TYPE_PYTHON3,
         'pymongo.py', [], [ './test/jobs/pymongo/pymongo.py' ]).then(function(job_model) {
         expect(job_model).toBeDefined();
-        expect(job_model.type).toEqual(eaeutils.Constants.EAE_JOB_TYPE_PYTHON2);
+        expect(job_model.type).toEqual(eaeutils.Constants.EAE_JOB_TYPE_PYTHON3);
         g_job = job_model;
         request(
             {

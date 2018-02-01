@@ -8,14 +8,14 @@ const JobExecutorAbstract = require('./jobExecutorAbstract.js');
 const { SwiftHelper, ErrorHelper } = require('eae-utils');
 
 /**
- * @class JobExecutorR
+ * @class JobExecutorTensorflow
  * @desc Specialization of JobExecutorAbstract for python scripts
  * @param jobID {String} The job unique identifier in DB
  * @param jobCollection MongoDB collection to sync the job model against
  * @param jobModel {Object} Plain js Job model from the mongoDB, optional if fetchModel is called
  * @constructor
  */
-function JobExecutorR(jobID, jobCollection, jobModel) {
+function JobExecutorTensorflow(jobID, jobCollection, jobModel) {
     JobExecutorAbstract.call(this, jobID, jobCollection, jobModel);
 
     // Init member attributes
@@ -27,14 +27,14 @@ function JobExecutorR(jobID, jobCollection, jobModel) {
     this._tmpDirectory = null;
 
     // Bind member functions
-    this._preExecution = JobExecutorR.prototype._preExecution.bind(this);
-    this._postExecution = JobExecutorR.prototype._postExecution.bind(this);
-    this.startExecution = JobExecutorR.prototype.startExecution.bind(this);
-    this.stopExecution = JobExecutorR.prototype.stopExecution.bind(this);
+    this._preExecution = JobExecutorTensorflow.prototype._preExecution.bind(this);
+    this._postExecution = JobExecutorTensorflow.prototype._postExecution.bind(this);
+    this.startExecution = JobExecutorTensorflow.prototype.startExecution.bind(this);
+    this.stopExecution = JobExecutorTensorflow.prototype.stopExecution.bind(this);
 
 }
-JobExecutorR.prototype = Object.create(JobExecutorAbstract.prototype); //Inherit Js style
-JobExecutorR.prototype.constructor = JobExecutorR;
+JobExecutorTensorflow.prototype = Object.create(JobExecutorAbstract.prototype); //Inherit Js style
+JobExecutorTensorflow.prototype.constructor = JobExecutorTensorflow;
 
 /**
  * @fn _preExecution
@@ -43,7 +43,7 @@ JobExecutorR.prototype.constructor = JobExecutorR;
  * @private
  * @pure
  */
-JobExecutorR.prototype._preExecution = function() {
+JobExecutorTensorflow.prototype._preExecution = function() {
     let _this = this;
 
     return new Promise(function (resolve, reject) {
@@ -100,11 +100,11 @@ JobExecutorR.prototype._preExecution = function() {
  * @private
  * @pure
  */
-JobExecutorR.prototype._postExecution = function() {
+JobExecutorTensorflow.prototype._postExecution = function() {
     let _this = this;
     return new Promise(function (resolve, reject) {
         let container_name = _this._jobID.toString() + '_output';
-        let tmpSource = path.join(_this._tmpDirectory, 'input', 'output');
+        let tmpSource = path.join(_this._tmpDirectory, 'input','output');
         let upload_file_promises = [];
 
         // Cleanup current output in model
@@ -157,7 +157,7 @@ JobExecutorR.prototype._postExecution = function() {
  * @param callback {Function} Function called after execution. callback(error, status)
  * @desc Starts the execution of designated job.
  */
-JobExecutorR.prototype.startExecution = function(callback) {
+JobExecutorTensorflow.prototype.startExecution = function(callback) {
     let _this = this;
 
     _this._callback = callback;
@@ -176,7 +176,7 @@ JobExecutorR.prototype.startExecution = function(callback) {
             _this._model.status.unshift(Constants.EAE_JOB_STATUS_RUNNING);
             _this._model.startDate = new Date();
             _this.pushModel().then(function() {
-                let cmd = 'Rscript --vanilla ' + _this._model.main;
+                let cmd = 'python ' + _this._model.main;
                 let args = _this._model.params;
                 let opts = {
                     cwd: _this._tmpDirectory + '/input',
@@ -198,10 +198,10 @@ JobExecutorR.prototype.startExecution = function(callback) {
  * @desc Interrupts the currently executed job.
  * @param callback {Function} Function called after execution. callback(error, status)
  */
-JobExecutorR.prototype.stopExecution = function(callback) {
+JobExecutorTensorflow.prototype.stopExecution = function(callback) {
     this._callback = callback;
     this._kill();
     // throw 'Should call _kill here';
 };
 
-module.exports = JobExecutorR;
+module.exports = JobExecutorTensorflow;

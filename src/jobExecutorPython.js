@@ -2,6 +2,7 @@ const process = require('process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const {Constants} = require('eae-utils');
 
 const JobExecutorAbstract = require('./jobExecutorAbstract.js');
 const { SwiftHelper, ErrorHelper } = require('eae-utils');
@@ -82,8 +83,8 @@ JobExecutorPython.prototype._preExecution = function() {
         //Wait for all files to be transferred
         Promise.all(file_transfer_promises).then(function(__unused__ok_array) {
             //Create output directory if doesnt exists
-            if (fs.existsSync(path.join(_this._tmpDirectory, 'output')) === false) {
-                fs.mkdirSync(path.join(_this._tmpDirectory, 'output'));
+            if (fs.existsSync(path.join(_this._tmpDirectory, 'input', 'output')) === false) {
+                fs.mkdirSync(path.join(_this._tmpDirectory, 'input', 'output'));
             }
             resolve(true); // All good
         }, function(error) {
@@ -103,7 +104,7 @@ JobExecutorPython.prototype._postExecution = function() {
     let _this = this;
     return new Promise(function (resolve, reject) {
         let container_name = _this._jobID.toString() + '_output';
-        let tmpSource = path.join(_this._tmpDirectory, 'output');
+        let tmpSource = path.join(_this._tmpDirectory, 'input','output');
         let upload_file_promises = [];
 
         // Cleanup current output in model
@@ -169,14 +170,23 @@ JobExecutorPython.prototype.startExecution = function(callback) {
         _this._tmpDirectory = directoryPath; //Save tmp dir
 
         _this.fetchModel().then(function () {
-            let cmd = 'python ' + _this._model.main;
-            let args = _this._model.params;
-            let opts = {
-                cwd: _this._tmpDirectory,
-                end: process.env,
-                shell: true
-            };
-            _this._exec(cmd, args, opts);
+            //Clean model for execution
+            _this._model.stdout = '';
+            _this._model.stderr = '';
+            _this._model.status.unshift(Constants.EAE_JOB_STATUS_RUNNING);
+            _this._model.startDate = new Date();
+            _this.pushModel().then(function() {
+                let cmd = 'python ' + _this._model.main;
+                let args = _this._model.params;
+                let opts = {
+                    cwd: _this._tmpDirectory + '/input',
+                    end: process.env,
+                    shell: true
+                };
+                _this._exec(cmd, args, opts);
+            }, function(error) {
+                throw error;
+            });
         }, function (error) {
             callback(error);
         });
